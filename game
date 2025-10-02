@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Logo Jump Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    #menu {
+      text-align: center;
+    }
+    #menu input, #menu select {
+      padding: 8px;
+      font-size: 16px;
+      margin: 5px 0;
+      border-radius: 5px;
+      border: 1px solid #aaa;
+    }
+    #menu button {
+      padding: 10px 20px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      margin-top: 10px;
+    }
+    #menu button:hover {
+      background: #0056b3;
+    }
+    canvas {
+      display: none;
+      background: #fff;
+      border: 2px solid #000;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+<div id="menu">
+  <h2>Logo Jump Game</h2>
+  <input type="text" id="username" placeholder="Nhập username..." /><br>
+  <label for="difficulty">Chọn độ khó:</label><br>
+  <select id="difficulty">
+    <option value="easy">Easy</option>
+    <option value="normal" selected>Normal</option>
+    <option value="hard">Hard</option>
+  </select><br>
+  <button id="playBtn">Play</button>
+</div>
+
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<script>
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  let gravity = 0.05;   // mặc định
+  let jumpPower = -10;  // mặc định
+  let gameOver = false;
+  let started = false;
+  let username = "";
+
+  // Countdown
+  let countdown = 3;
+  let countingDown = false;
+
+  // Nhân vật (logo)
+  const player = {
+    x: 80,
+    y: canvas.height / 2,
+    width: 40,
+    height: 40,
+    velocity: 0,
+    img: new Image(),
+    imgLoaded: false
+  };
+  player.img.src = "logo.png";
+  player.img.onload = () => { player.imgLoaded = true; };
+  player.img.onerror = () => {
+    console.warn("Không tìm thấy logo.png, sẽ dùng ô vuông thay thế.");
+  };
+
+  // Ống cản trở
+  let pipes = [];
+  const pipeWidth = 60;
+  const pipeGap = 190;
+  let pipeSpeed = 0.1; // bắt đầu rất chậm
+  let frame = 0;
+  let score = 0;
+
+  function drawPlayer() {
+    if (player.imgLoaded) {
+      ctx.drawImage(player.img, player.x, player.y, player.width, player.height);
+    } else {
+      ctx.fillStyle = "red";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+  }
+
+  function drawPipes() {
+    ctx.fillStyle = "#000";
+    for (let pipe of pipes) {
+      ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+      ctx.fillRect(pipe.x, pipe.top + pipeGap, pipeWidth, canvas.height);
+    }
+  }
+
+  function updatePipes() {
+    if (frame % 100 === 0) {
+      let top = Math.random() * (canvas.height - pipeGap - 100) + 50;
+      pipes.push({ x: canvas.width, top: top, passed: false });
+    }
+    for (let pipe of pipes) {
+      pipe.x -= pipeSpeed;
+      if (
+        player.x < pipe.x + pipeWidth &&
+        player.x + player.width > pipe.x &&
+        (player.y < pipe.top || player.y + player.height > pipe.top + pipeGap)
+      ) {
+        gameOver = true;
+      }
+      if (!pipe.passed && pipe.x + pipeWidth < player.x) {
+        score++;
+        pipe.passed = true;
+      }
+    }
+    pipes = pipes.filter(p => p.x + pipeWidth > 0);
+  }
+
+  function drawScore() {
+    ctx.fillStyle = "#000";
+    ctx.font = "20px Arial";
+    ctx.fillText("User: " + username, 10, 25);
+    ctx.fillText("Score: " + score, 10, 50);
+    ctx.fillText("Speed: " + pipeSpeed.toFixed(2), 10, 75);
+  }
+
+  function drawCountdown() {
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#fff";
+    ctx.font = "48px Arial";
+    if (countdown > 0) {
+      ctx.fillText(countdown, canvas.width/2 - 15, canvas.height/2);
+    } else {
+      ctx.fillText("GO!", canvas.width/2 - 40, canvas.height/2);
+    }
+  }
+
+  function loop() {
+    if (!started) return;
+
+    if (countingDown) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawCountdown();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fff";
+      ctx.font = "36px Arial";
+      ctx.fillText("Game Over", 100, 300);
+      ctx.font = "20px Arial";
+      ctx.fillText(username + " Score: " + score, 100, 340);
+      ctx.fillText("Refresh để chơi lại", 110, 370);
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Update nhân vật
+    player.velocity += gravity;
+    player.y += player.velocity;
+    if (player.y + player.height > canvas.height || player.y < 0) {
+      gameOver = true;
+    }
+
+    // Update pipes
+    updatePipes();
+
+    // Vẽ
+    drawPlayer();
+    drawPipes();
+    drawScore();
+
+    // Tăng tốc dần
+    pipeSpeed += 0.0001;
+
+    frame++;
+    requestAnimationFrame(loop);
+  }
+
+  // Điều khiển
+  window.addEventListener("keydown", () => {
+    if (!gameOver && started && !countingDown) player.velocity = jumpPower;
+  });
+  canvas.addEventListener("mousedown", () => {
+    if (!gameOver && started && !countingDown) player.velocity = jumpPower;
+  });
+
+  // Nút Play
+  document.getElementById("playBtn").addEventListener("click", () => {
+    const inputName = document.getElementById("username").value.trim();
+    if (!inputName) {
+      alert("Vui lòng nhập username trước!");
+      return;
+    }
+    username = inputName;
+
+    // chọn độ khó
+    const difficulty = document.getElementById("difficulty").value;
+    if (difficulty === "easy") {
+      gravity = 0.05;
+      jumpPower = -5;   // nhảy nhẹ hơn
+    } else if (difficulty === "normal") {
+      gravity = 0.1;
+      jumpPower = -10;
+    } else if (difficulty === "hard") {
+      gravity = 0.2;
+      jumpPower = -8;
+    }
+
+    document.getElementById("menu").style.display = "none";
+    canvas.style.display = "block";
+    started = true;
+    countingDown = true;
+    countdown = 3;
+    let countdownInterval = setInterval(() => {
+      countdown--;
+      if (countdown < 0) {
+        clearInterval(countdownInterval);
+        countingDown = false;
+      }
+    }, 1000);
+    loop();
+  });
+</script>
+</body>
+</html>
