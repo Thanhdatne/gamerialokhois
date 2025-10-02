@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Logo Jump Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      background: #fff;
+      border: 2px solid #000;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+<script>
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const gravity = 0.5;
+  const jumpPower = -8;
+  let gameOver = false;
+
+  // Nhân vật (logo)
+  const player = {
+    x: 80,
+    y: canvas.height / 2,
+    width: 40,
+    height: 40,
+    velocity: 0,
+    img: new Image()
+  };
+  player.img.src = "logo.png"; // nhớ đổi tên file thành logo.png
+
+  // Ống cản trở
+  let pipes = [];
+  const pipeWidth = 60;
+  const pipeGap = 150;
+  let frame = 0;
+  let score = 0;
+
+  function drawPlayer() {
+    ctx.drawImage(player.img, player.x, player.y, player.width, player.height);
+  }
+
+  function drawPipes() {
+    ctx.fillStyle = "#000";
+    for (let pipe of pipes) {
+      ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+      ctx.fillRect(pipe.x, pipe.top + pipeGap, pipeWidth, canvas.height);
+    }
+  }
+
+  function updatePipes() {
+    if (frame % 90 === 0) {
+      let top = Math.random() * (canvas.height - pipeGap - 100) + 50;
+      pipes.push({ x: canvas.width, top: top, passed: false });
+    }
+    for (let pipe of pipes) {
+      pipe.x -= 2;
+      // Va chạm
+      if (
+        player.x < pipe.x + pipeWidth &&
+        player.x + player.width > pipe.x &&
+        (player.y < pipe.top || player.y + player.height > pipe.top + pipeGap)
+      ) {
+        gameOver = true;
+      }
+      if (!pipe.passed && pipe.x + pipeWidth < player.x) {
+        score++;
+        pipe.passed = true;
+      }
+    }
+    pipes = pipes.filter(p => p.x + pipeWidth > 0);
+  }
+
+  function drawScore() {
+    ctx.fillStyle = "#000";
+    ctx.font = "24px Arial";
+    ctx.fillText("Score: " + score, 10, 30);
+  }
+
+  function loop() {
+    if (gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fff";
+      ctx.font = "36px Arial";
+      ctx.fillText("Game Over", 100, 300);
+      ctx.font = "20px Arial";
+      ctx.fillText("Refresh để chơi lại", 110, 340);
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Update nhân vật
+    player.velocity += gravity;
+    player.y += player.velocity;
+    if (player.y + player.height > canvas.height || player.y < 0) {
+      gameOver = true;
+    }
+
+    // Update pipes
+    updatePipes();
+
+    // Vẽ
+    drawPlayer();
+    drawPipes();
+    drawScore();
+
+    frame++;
+    requestAnimationFrame(loop);
+  }
+
+  // Điều khiển
+  window.addEventListener("keydown", () => {
+    if (!gameOver) player.velocity = jumpPower;
+  });
+  canvas.addEventListener("mousedown", () => {
+    if (!gameOver) player.velocity = jumpPower;
+  });
+
+  loop();
+</script>
+</body>
+</html>
